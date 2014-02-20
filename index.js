@@ -12,7 +12,6 @@ var decode = exports.decode = function (hstore, options) {
 
     if (!options['root_hash_decorated'])
         hstore = '{'+hstore+'}';
-    console.log(hstore);
 
     var machine = fsm();
 
@@ -31,7 +30,6 @@ var decode = exports.decode = function (hstore, options) {
     if (env.state != 'ok')
         throw new SyntaxError('hstore');
 
-    //console.log(env.container);
     return combine(env.container);
 };
 
@@ -73,7 +71,7 @@ var encode = exports.encode = function (object, options, top) {
         return is_array
              ? value
              : normalize(key)+'=>'+value;
-    }).join(', ');
+    }).join(',');
 
     if (options['root_hash_decorated'])
         hstore = (is_array && options['array_square_brackets'])
@@ -82,6 +80,139 @@ var encode = exports.encode = function (object, options, top) {
 
     return hstore;
 };
+
+function fsm() {
+    var container, element;
+    var stack = [];
+    var state = 'ok';
+    var quoted = false;
+
+    function push(c) {
+        var env = {
+            state: state,
+            close_char: c == '[' ? ']' : '}'
+        };
+
+        if (container)
+            env.container = container;
+        if (element)
+            env.element = element;
+
+        stack.push(env);
+
+        element = undefined;
+        container = [];
+        state = 'firstchar';
+    }
+
+    function pop(c) {
+        var pop = stack.pop();
+
+        if (pop.close_char != c)
+            throw new SyntaxError('Hstore: unexpected close char.');
+
+        if (pop.container) {
+            var element = {value: container};
+            if (pop.element && pop.element.key)
+                element.key = pop.element.key;
+
+            pop.container.push(element);
+            container = pop.container;
+        }
+
+        state = pop.state;
+    }
+
+    function fill(c) {
+        if (element === undefined)
+            element = {key: ''};
+
+        if (element.value === undefined) {
+            element.key += c;
+        } else {
+            element.value += c;
+        }
+
+        if (quoted && !element.quoted)
+            element.quoted = true;
+    }
+
+    var actions = {
+        ok: function(c) {
+            if (c == '{' || c == '[')
+                push(c);
+        },
+        firstchar: function(c, p, n) {
+            if (c == ',') {
+                if (!container.length)
+                    throw new SyntaxError;
+
+                return;
+            }
+
+            if (c == '{' || c == '[')
+                return push(c);
+
+            if (c == '}' || c == ']')
+                return pop(c);
+
+            if (c == '"' && p != '\\') {
+                quoted = !quoted;
+            } else {
+                fill(c);
+            }
+
+            if (!quoted && (n == ',' || n == '}' || n == ']')) {
+                state = 'comma';
+            } else {
+                state = 'keyvalue';
+            }
+        },
+        keyvalue: function(c, p, n) {
+            var ignore = false;
+            if (c == '"' && p != '\\') {
+                quoted = !quoted;
+                ignore = true;
+            }
+
+            if (!quoted && c == '=' && n == '>')
+                return state = 'arrow';
+
+            if (!ignore)
+                fill(c);
+
+            if (!quoted && (n == ',' || n == '}' || n == ']'))
+                return state = 'comma';
+        },
+        arrow: function(c, p, n) {
+            element.value = '';
+            element.quoted = false;
+            state = 'firstchar';
+        },
+        comma: function(c, p, n) {
+            if (element.value === undefined) {
+                element.value = element.key;
+                delete element.key;
+            }
+            container.push(element);
+            element = undefined;
+
+            if (c == '}' || c == ']')
+                return pop(c);
+
+            state = 'firstchar';
+        }
+    };
+
+    return function(c, p, n) {
+        (actions[state])(c, p, n);
+
+        return {
+            container: container,
+            state: state
+        };
+    };
+}
 
 var number_reg = /^\d+(?:\.\d+)?$/;
 function combine(container) {
@@ -123,150 +254,4 @@ function combine(container) {
     });
 
     return data;
-}
-
-function fsm() {
-    var container, element;
-    var stack = [];
-    var state = 'ok';
-    var quoted = false;
-
-    function push_stack(c) {
-        var env = {
-            state: state,
-            close_char: c == '[' ? ']' : '}'
-        };
-
-        if (container)
-            env['container'] = container;
-
-        if (element)
-            env['element'] = element;
-
-        stack.push(env);
-
-        element = undefined;
-        container = [];
-        state = 'firstchar';
-    }
-
-    function pop_stack(c) {
-        var pop = stack.pop();
-        state = pop.state;
-
-        if (element)
-            container.push(element);
-
-        if (pop.container) {
-            var el = {value: container};
-            if (pop.element && pop.element.key)
-                el.key = pop.element.key;
-
-            pop.container.push(el);
-            container = pop.container;
-        }
-
-        element = undefined;
-    }
-
-    function fill_element(c) {
-        if (element === undefined)
-            element = {key: ''};
-
-        if (element.value !== undefined) {
-            element.value += c;
-        } else {
-            element.key += c;
-        }
-
-        if (quoted && element.quoted !== true)
-            element.quoted = true;
-    }
-
-    function fix_element(el) {
-        if (el.value === undefined) {
-            el.value = el.key;
-            delete el.key;
-        }
-
-        return el;
-    }
-
-    // '"a"=>1,"b"=>2,"c"=>3,"d"=>{"e"=>1}';
-    var actions = {
-        ok: function(c) {
-            if (c == '{' || c == '[')
-                push_stack(c);
-        },
-        firstchar: {
-            '{': push_stack,
-            '[': push_stack,
-            '}': pop_stack,
-            ']': pop_stack,
-            '*': function(c, p) {
-                if (c == ' ' || c == ',')
-                    return;
-
-                if (c == '"' && p != '\\') {
-                    quoted = !quoted;
-                } else {
-                    fill_element(c);
-                }
-
-                state = 'element';
-            }
-        },
-        element: function(c, p, n) {
-            if (c == '"' && p != '\\') {
-                quoted = !quoted;
-                if (!quoted) return;
-            }
-
-            if (quoted)
-                return fill_element(c);
-
-            if (c == '}' || c == ']') {
-                if (element.value === undefined) {
-                    element.value = element.key;
-                    delete element.key;
-                }
-                return pop_stack(c);
-            }
-
-            if (c == '=' && n == '>')
-                return;
-
-            if (c == '>' && p == '=') {
-                element.value = '';
-                element.quoted = false;
-                state = 'firstchar';
-                return;
-            }
-
-            if (c == ',') {
-                if (element.value === undefined) {
-                    element.value = element.key;
-                    delete element.key;
-                }
-
-                container.push(element);
-                element = undefined;
-                state = 'firstchar';
-                return;
-            }
-
-            fill_element(c);
-        }
-    };
-
-    return function(c, p, n) {
-        var action = actions[state];
-
-        if (typeof action != 'function')
-            action = action[c] || action['*'];
-
-        action(c, p, n);
-
-        return {container: container, state: state, stack: stack};
-    };
 }
