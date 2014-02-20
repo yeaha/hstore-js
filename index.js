@@ -7,33 +7,7 @@ var default_options = {
     root_hash_decorated: false
 };
 
-var decode = exports.decode = function (hstore, options) {
-    options = _.defaults(options || {}, default_options);
-
-    if (!options['root_hash_decorated'])
-        hstore = '{'+hstore+'}';
-
-    var machine = fsm();
-
-    for (var env, c, n, p, i = 0, len = hstore.length; i < len; i++) {
-        // current
-        c = (i === 0) ? hstore.substr(i, 1) : n;
-        // next
-        n = (i+1 < len) ? hstore.substr(i+1, 1) : undefined;
-
-        env = machine(c, p, n);
-
-        // prev
-        p = c;
-    }
-
-    if (env.state != 'ok')
-        throw new SyntaxError('Unexpected end of input');
-
-    return combine(env.container);
-};
-
-var encode = exports.encode = function(data, options, top) {
+var stringify = exports.stringify = function(data, options, top) {
     function normalize(data) {
         if (data === null)
             return 'NULL';
@@ -62,7 +36,7 @@ var encode = exports.encode = function(data, options, top) {
 
     var hstore = _.map(data, function(value, key) {
         value = _.isObject(value)
-              ? encode(value, options, false)
+              ? stringify(value, options, false)
               : normalize(value);
 
         return is_array ? value : quote(key)+'=>'+value;
@@ -74,6 +48,32 @@ var encode = exports.encode = function(data, options, top) {
                : '{'+hstore+'}';
 
     return hstore;
+};
+
+exports.parse = function (hstore, options) {
+    options = _.defaults(options || {}, default_options);
+
+    if (!options['root_hash_decorated'])
+        hstore = '{'+hstore+'}';
+
+    var machine = fsm();
+
+    for (var env, c, n, p, i = 0, len = hstore.length; i < len; i++) {
+        // current
+        c = (i === 0) ? hstore.substr(i, 1) : n;
+        // next
+        n = (i+1 < len) ? hstore.substr(i+1, 1) : undefined;
+
+        env = machine(c, p, n);
+
+        // previous
+        p = c;
+    }
+
+    if (env.state != 'ok')
+        throw new SyntaxError('Unexpected end of input');
+
+    return combine(env.container);
 };
 
 function fsm() {
