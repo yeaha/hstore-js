@@ -111,16 +111,15 @@ function fsm() {
         if (pop.close_char != c)
             throw new SyntaxError('Hstore: unexpected close char.');
 
-        if (pop.container) {
-            var element = {value: container};
-            if (pop.element && pop.element.key)
-                element.key = pop.element.key;
-
-            pop.container.push(element);
-            container = pop.container;
-        }
-
         state = pop.state;
+
+        if (pop.container) {
+            element = pop.element || {};
+            element.value = container;
+
+            container = pop.container;
+            state = 'comma';
+        }
     }
 
     function fill(c) {
@@ -143,12 +142,8 @@ function fsm() {
                 push(c);
         },
         firstchar: function(c, p, n) {
-            if (c == ',') {
-                if (!container.length)
-                    throw new SyntaxError;
-
+            if (c == ' ')   // ignore white space
                 return;
-            }
 
             if (c == '{' || c == '[')
                 return push(c);
