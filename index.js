@@ -170,6 +170,9 @@ function fsm() {
                 ignore = true;
             }
 
+            if (!quoted && c == ' ')
+                ignore = true;
+
             if (!quoted && c == '=' && n == '>')
                 return state = 'arrow';
 
