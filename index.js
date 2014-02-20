@@ -33,47 +33,42 @@ var decode = exports.decode = function (hstore, options) {
     return combine(env.container);
 };
 
-var encode = exports.encode = function (object, options, top) {
-    options = _.defaults(options || {}, default_options);
-    if (_.isUndefined(top)) top = true;
+var encode = exports.encode = function(data, options, top) {
+    function normalize(data) {
+        if (data === null)
+            return 'NULL';
 
-    var is_array = _.isArray(object);
+        if (data === '')
+            return '""';
 
-    var normalize = function(data, is_value) {
-        if (is_value) {
-            if (data === null)
-                return 'NULL';
+        if (data === true || data === false)
+            return data ? 't' : 'f';
 
-            if (data === '')
-                return '""';
+        if (_.isNumber(data))
+            return data;
 
-            if (_.isBoolean(data))
-                return data ? 't': 'f';
+        return quote(data);
+    }
 
-            if (_.isNumber(data))
-                return data;
-        }
-
+    function quote(data) {
         data = data.replace('"', '\\"');
-
         return '"'+data+'"';
-    };
+    }
 
-    var hstore = _.map(object, function(value, key) {
-        if (_.isObject(value)) {
-            var o = _.clone(options);
-            o['root_hash_decorated'] = true;
-            value = encode(value, o);
-        } else {
-            value = normalize(value, true);
-        }
+    var is_array = _.isArray(data);
 
-        return is_array
-             ? value
-             : normalize(key)+'=>'+value;
+    options = _.defaults(options || {}, default_options);
+    if (top === undefined) top = true;
+
+    var hstore = _.map(data, function(value, key) {
+        value = _.isObject(value)
+              ? encode(value, options, false)
+              : normalize(value);
+
+        return is_array ? value : quote(key)+'=>'+value;
     }).join(',');
 
-    if (options['root_hash_decorated'])
+    if (!top || options['root_hash_decorated'])
         hstore = (is_array && options['array_square_brackets'])
                ? '['+hstore+']'
                : '{'+hstore+'}';
@@ -219,7 +214,7 @@ var number_reg = /^\d+(?:\.\d+)?$/;
 function combine(container) {
     var data = {}, is_array = null;
 
-    container.forEach(function(element) {
+    _.each(container, function(element) {
         if (is_array === null) {
             is_array = element.key === undefined;
 
@@ -228,9 +223,11 @@ function combine(container) {
         }
 
         var value = element.value;
-        if (typeof value == 'object') {
+        if (_.isObject(value)) {
             value = combine(value);
         } else if (element.quoted) {
+            value = value.replace('\\"', '"')
+                         .replace('\\\\', '\\');
         } else {
             if (value == 't') {
                 value = true;
@@ -246,9 +243,9 @@ function combine(container) {
         if (is_array) {
             data.push(value);
         } else {
-            var key = element.key;
-            key = key.replace('\\"', '"');
-            key = key.replace('\\\\', '\\');
+            var key = element.key
+                    .replace('\\"', '"')
+                    .replace('\\\\', '\\');
 
             data[key] = value;
         }
