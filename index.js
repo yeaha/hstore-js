@@ -28,7 +28,7 @@ var decode = exports.decode = function (hstore, options) {
     }
 
     if (env.state != 'ok')
-        throw new SyntaxError('hstore');
+        throw new SyntaxError('Unexpected end of input');
 
     return combine(env.container);
 };
@@ -109,7 +109,7 @@ function fsm() {
         var pop = stack.pop();
 
         if (pop.close_char != c)
-            throw new SyntaxError('Hstore: unexpected close char.');
+            throw new SyntaxError('Unexpected token '+c);
 
         state = pop.state;
 
@@ -144,6 +144,9 @@ function fsm() {
         firstchar: function(c, p, n) {
             if (c == ' ')   // ignore white space
                 return;
+
+            if (c == ',')
+                throw new SyntaxError('Unexpected token '+c);
 
             if (c == '{' || c == '[')
                 return push(c);
