@@ -1,12 +1,5 @@
 "use strict";
 
-var _ = require('underscore');
-
-var default_options = {
-    array_square_brackets: false,
-    root_hash_decorated: false
-};
-
 var stringify = exports.stringify = function(data, options, top) {
     function normalize(data) {
         if (data === null)
@@ -18,7 +11,7 @@ var stringify = exports.stringify = function(data, options, top) {
         if (data === true || data === false)
             return data ? 't' : 'f';
 
-        if (_.isNumber(data))
+        if (Object.prototype.toString.call(data) == '[object Number]')
             return data;
 
         return quote(data);
@@ -29,18 +22,28 @@ var stringify = exports.stringify = function(data, options, top) {
         return '"'+data+'"';
     }
 
-    var is_array = _.isArray(data);
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    options = _.defaults(options || {}, default_options);
-    if (top === undefined) top = true;
+    if (top === undefined)
+        top = true;
 
-    var hstore = _.map(data, function(value, key) {
-        value = _.isObject(value)
+    if (top)
+        options = normalize_options(options || {});
+
+    var is_array = (Object.prototype.toString.call(data) == '[object Array]');
+    var value, hstore = [];
+
+    for (var key in data) {
+        value = data[key];
+
+        value = (typeof value == 'object')
               ? stringify(value, options, false)
               : normalize(value);
 
-        return is_array ? value : quote(key)+'=>'+value;
-    }).join(',');
+        hstore.push(is_array ? value : quote(key)+'=>'+value);
+    }
+
+    hstore = hstore.join(',');
 
     if (!top || options['root_hash_decorated'])
         hstore = (is_array && options['array_square_brackets'])
@@ -51,7 +54,7 @@ var stringify = exports.stringify = function(data, options, top) {
 };
 
 exports.parse = function (hstore, options) {
-    options = _.defaults(options || {}, default_options);
+    options = normalize_options(options || {});
 
     if (!options['root_hash_decorated'])
         hstore = '{'+hstore+'}';
@@ -76,12 +79,21 @@ exports.parse = function (hstore, options) {
     return combine(env.container);
 };
 
-function fsm() {
-    var container, element;
-    var stack = [];
-    var state = 'ok';
-    var quoted = false;
+function normalize_options(options) {
+    var defaults = {
+        array_square_brackets: false,
+        root_hash_decorated: false
+    };
 
+    for (var k in defaults) {
+        if (options[k] === undefined)
+            options[k] = defaults[k];
+    }
+
+    return options;
+}
+
+function fsm() {
     function push(c) {
         var env = {
             state: state,
@@ -130,6 +142,13 @@ function fsm() {
         if (quoted && !element.quoted)
             element.quoted = true;
     }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    var container, element;
+    var stack = [];
+    var state = 'ok';
+    var quoted = false;
 
     var actions = {
         ok: function(c) {
@@ -210,11 +229,11 @@ function fsm() {
     };
 }
 
-var number_reg = /^\d+(?:\.\d+)?$/;
+var numeric_reg = /^\d+(?:\.\d+)?$/;
 function combine(container) {
     var data = {}, is_array = null;
 
-    _.each(container, function(element) {
+    container.forEach(function(element) {
         if (is_array === null) {
             is_array = element.key === undefined;
 
@@ -223,7 +242,7 @@ function combine(container) {
         }
 
         var value = element.value;
-        if (_.isObject(value)) {
+        if (typeof value == 'object') {
             value = combine(value);
         } else if (element.quoted) {
             value = value.replace('\\"', '"')
@@ -235,7 +254,7 @@ function combine(container) {
                 value = false;
             } else if (value == 'NULL') {
                 value = null;
-            } else if (number_reg.test(value)) {
+            } else if (numeric_reg.test(value)) {
                 value = value * 1;
             }
         }
