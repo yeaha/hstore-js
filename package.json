@@ -1,0 +1,16 @@
+{
+    "name": "hstore-js",
+    "author": "yangyi.cn.gz@gmail.com",
+    "version": "0.1.0",
+    "description": "Postgresql hstore stringify and parse functions, support nested hstore syntax",
+    "main": "./index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yeaha/hstore-js.git"
+    },
+    "keywords": [
+        "postgresql",
+        "hstore"
+    ],
+    "license": "MIT"
+}
