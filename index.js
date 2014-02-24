@@ -8,8 +8,13 @@ var stringify = exports.stringify = function(data, options, top) {
         if (data === '')
             return '""';
 
-        if (data === true || data === false)
-            return data ? 't' : 'f';
+        if (data === true || data === false) {
+            if (options.boolean_as_integer) {
+                return data ? 1 : 0;
+            } else {
+                return data ? 't' : 'f';
+            }
+        }
 
         if (Object.prototype.toString.call(data) == '[object Number]')
             return data;
@@ -18,8 +23,8 @@ var stringify = exports.stringify = function(data, options, top) {
     }
 
     function quote(data) {
-        data = data.replace("\\", "\\\\")
-                   .replace("'", "''")
+        data = data.replace(/\\$/, '')      // string end with \ will make parse error
+                   .replace("\\", "\\\\")
                    .replace('"', '\\"');
 
         return '"'+data+'"';
@@ -39,7 +44,7 @@ var stringify = exports.stringify = function(data, options, top) {
     for (var key in data) {
         value = data[key];
 
-        value = (typeof value == 'object')
+        value = (value === Object(value)) // is object?
               ? stringify(value, options, false)
               : normalize(value);
 
@@ -48,10 +53,14 @@ var stringify = exports.stringify = function(data, options, top) {
 
     hstore = hstore.join(',');
 
-    if (!top || options['root_hash_decorated'])
-        hstore = (is_array && options['array_square_brackets'])
+    if (!top || options.root_hash_decorated)
+        hstore = (is_array && options.array_square_brackets)
                ? '['+hstore+']'
                : '{'+hstore+'}';
+
+    // return as postgresql hstore expression
+    if (options.return_postgresql_expression)
+        hstore = "'"+hstore.replace("'", "''")+"'::hstore";
 
     return hstore;
 };
@@ -59,7 +68,7 @@ var stringify = exports.stringify = function(data, options, top) {
 exports.parse = function (hstore, options) {
     options = normalize_options(options || {});
 
-    if (!options['root_hash_decorated'])
+    if (!options.root_hash_decorated)
         hstore = '{'+hstore+'}';
 
     var machine = fsm();
@@ -79,13 +88,16 @@ exports.parse = function (hstore, options) {
     if (env.state != 'ok')
         throw new SyntaxError('Unexpected end of input');
 
-    return combine(env.container);
+    return combine(env.container, options);
 };
 
 function normalize_options(options) {
     var defaults = {
         array_square_brackets: false,
-        root_hash_decorated: false
+        boolean_as_integer: false,
+        numeric_check: false,
+        root_hash_decorated: false,
+        return_postgresql_expression: false     // stringify
     };
 
     for (var k in defaults) {
@@ -233,7 +245,7 @@ function fsm() {
 }
 
 var numeric_reg = /^\d+(?:\.\d+)?$/;
-function combine(container) {
+function combine(container, options) {
     var data = {}, is_array = null;
 
     container.forEach(function(element) {
@@ -246,10 +258,13 @@ function combine(container) {
 
         var value = element.value;
         if (typeof value == 'object') {
-            value = combine(value);
+            value = combine(value, options);
         } else if (element.quoted) {
             value = value.replace('\\"', '"')
                          .replace('\\\\', '\\');
+
+            if (options.numeric_check && numeric_reg.test(value))
+                value = value * 1;
         } else {
             if (value == 't') {
                 value = true;

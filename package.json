@@ -1,5 +1,5 @@
 {
-    "name": "hstore-js",
+    "name": "hstore.js",
     "author": "yangyi.cn.gz@gmail.com",
     "version": "0.1.0",
     "description": "Postgresql hstore stringify and parse functions, support nested hstore syntax",
@@ -12,5 +12,11 @@
         "postgresql",
         "hstore"
     ],
-    "license": "MIT"
+    "license": "MIT",
+    "devDependencies": {
+        "mocha": "1.x.x"
+    },
+    "scripts": {
+        "test": "mocha ./test.js"
+    }
 }
