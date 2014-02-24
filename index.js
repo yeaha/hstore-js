@@ -18,7 +18,10 @@ var stringify = exports.stringify = function(data, options, top) {
     }
 
     function quote(data) {
-        data = data.replace('"', '\\"');
+        data = data.replace("\\", "\\\\")
+                   .replace("'", "''")
+                   .replace('"', '\\"');
+
         return '"'+data+'"';
     }
 
