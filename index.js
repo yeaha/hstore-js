@@ -23,8 +23,7 @@ var stringify = exports.stringify = function(data, options, top) {
     }
 
     function quote(data) {
-        data = data.replace(/\\$/, '')      // string end with \ will make parse error
-                   .replace("\\", "\\\\")
+        data = data.replace("\\", "\\\\")
                    .replace('"', '\\"');
 
         return '"'+data+'"';
@@ -160,7 +159,7 @@ function fsm() {
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    var container, element;
+    var backslash_repeat, container, element;
     var stack = [];
     var state = 'ok';
     var quoted = false;
@@ -183,7 +182,7 @@ function fsm() {
             if (c == '}' || c == ']')
                 return pop(c);
 
-            if (c == '"' && p != '\\') {
+            if (c == '"' && (p != '\\' || backslash_repeat % 2 === 0)) {
                 quoted = !quoted;
             } else {
                 fill(c);
@@ -197,7 +196,7 @@ function fsm() {
         },
         keyvalue: function(c, p, n) {
             var ignore = false;
-            if (c == '"' && p != '\\') {
+            if (c == '"' && (p != '\\' || backslash_repeat % 2 === 0)) {
                 quoted = !quoted;
                 ignore = true;
             }
@@ -235,6 +234,14 @@ function fsm() {
     };
 
     return function(c, p, n) {
+        if (c == '\\') {
+            if (p != '\\') {
+                backslash_repeat = 1;
+            } else {
+                backslash_repeat += 1;
+            }
+        }
+
         (actions[state])(c, p, n);
 
         return {

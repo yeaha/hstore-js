@@ -5,13 +5,13 @@ var hstore = require("./index");
 
 describe('simple hstore', function() {
     it('stringify and parse', function(done) {
-        var data = {a: 1, b: '2', c: 'foobar', d: '"', e: "'", f: '', g: null};
+        var data = {a: 1, b: '2', c: 'foobar', d: '"', e: "'", f: '', g: '\\', h: null};
         var encoded = hstore.stringify(data);
 
-        assert.equal(encoded, '"a"=>1,"b"=>"2","c"=>"foobar","d"=>"\\"","e"=>"\'","f"=>"","g"=>NULL');
+        assert.equal(encoded, '"a"=>1,"b"=>"2","c"=>"foobar","d"=>"\\"","e"=>"\'","f"=>"","g"=>"\\\\","h"=>NULL');
 
         var decoded = hstore.parse(encoded);
-        assert.strictEqual(decoded['g'], null);
+        assert.strictEqual(decoded['h'], null);
 
         done();
     });
@@ -22,10 +22,11 @@ describe('simple hstore', function() {
             '=>bar' : 'bar=>',
             '{foo': 'foo}',
             '[bar': 'bar]',
+            '\\foo': 'foo\\',
         };
 
         var encoded = hstore.stringify(data);
-        assert.equal(encoded, '"\\"foo"=>"foo\\"","=>bar"=>"bar=>","{foo"=>"foo}","[bar"=>"bar]"');
+        assert.equal(encoded, '"\\"foo"=>"foo\\"","=>bar"=>"bar=>","{foo"=>"foo}","[bar"=>"bar]","\\\\foo"=>"foo\\\\"');
 
         var decoded = hstore.parse(encoded);
 
