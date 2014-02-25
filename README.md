@@ -22,16 +22,16 @@ Postgresql hstore stringify and parse functions, support nested hstore syntax.
 ``` javascript
 var hstore = require('hstore.js');
 
-var data = {a: 1, b: null, c: true, d: false, 'foo': 'bar'};
+var data = {a: 1, b: null, c: true, d: false, e: '"', f: "'", g: '\\', h: '=>'};
 var encoded = hstore.stringify(data, {boolean_as_integer: true});
 
-// "a"=>1,"b"=>NULL,"c"=>1,"d"=>0,"foo"=>"bar"
+// "a"=>1,"b"=>NULL,"c"=>1,"d"=>0,"e"=>"\"","f"=>"'","g"=>"\\","h"=>"=>"
 console.log(encoded);
 
 var expr = hstore.stringify(data, {boolean_as_integer: true, return_postgresql_expression: true});
 var sql = 'select '+ expr;
 
-// select '"a"=>1,"b"=>NULL,"c"=>1,"d"=>0,"foo"=>"bar"'::hstore
+// select '"a"=>1,"b"=>NULL,"c"=>1,"d"=>0,"e"=>"\"","f"=>"''","g"=>"\\","h"=>"=>"'::hstore
 console.log(sql);
 ```
 
@@ -40,15 +40,17 @@ console.log(sql);
 ``` javascript
 var hstore = require('hstore.js');
 
-var hstore_string = '"a"=>"1", "b"=>NULL, "c"=>"foobar"';
+var hstore_string = '"a"=>"1", "b"=>NULL, "c"=>"\\"", "d"=>"\'", "e"=>"\\\\", "f"=>"=>"';
 var data = hstore.parse(hstore_string);
 
-// {
-//     a: '1',
-//     b: null,
-//     c: 'foobar'
-// }
+// { a: '1', b: null, c: '"', d: '\'', e: '\\', f: '=>' }
 console.log(data);
+
+data = hstore.parse(hstore_string, {numeric_check: true});
+
+// { a: 1, b: null, c: '"', d: '\'', e: '\\', f: '=>' }
+console.log(data);
+
 ```
 
 ## Nested hstore
@@ -84,16 +86,10 @@ var hstore = require('hstore.js');
 
 var hstore_string = '"a"=>1, "b"=>{"c"=>3, "d"=>{4, 5, 6}}';
 
-// {
-//     a: 1,
-//     b: {
-//         c: 3,
-//         d: [4, 5, 6]
-//     }
-// }
+// { a: 1, b: { c: 3, d: [ 4, 5, 6 ] } }
 console.log(hstore.parse(hstore_string));
 
 hstore_string = 'a,b,3,4,5';
-// ['a', 'b', 3, 4, 5]
+// [ 'a', 'b', 3, 4, 5 ]
 console.log(hstore.parse(hstore_string));
 ```
