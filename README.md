@@ -3,6 +3,12 @@ hstore-js
 
 Postgresql hstore stringify and parse functions, support nested hstore syntax.
 
+## Install
+
+``` bash
+$ npm install hstore.js
+```
+
 ## Usage
 
 ### Options
