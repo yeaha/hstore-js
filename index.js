@@ -19,14 +19,7 @@ var stringify = exports.stringify = function(data, options, top) {
         if (Object.prototype.toString.call(data) == '[object Number]')
             return data;
 
-        return quote(data);
-    }
-
-    function quote(data) {
-        data = data.replace("\\", "\\\\")
-                   .replace('"', '\\"');
-
-        return '"'+data+'"';
+        return '"'+escape(data)+'"';
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,8 +39,9 @@ var stringify = exports.stringify = function(data, options, top) {
         value = (value === Object(value)) // is object?
               ? stringify(value, options, false)
               : normalize(value);
+        key = '"'+escape(key)+'"';
 
-        hstore.push(is_array ? value : quote(key)+'=>'+value);
+        hstore.push(is_array ? value : key+'=>'+value);
     }
 
     hstore = hstore.join(',');
@@ -59,7 +53,7 @@ var stringify = exports.stringify = function(data, options, top) {
 
     // return as postgresql hstore expression
     if (options.return_postgresql_expression)
-        hstore = "'"+hstore.replace("'", "''")+"'::hstore";
+        hstore = "'"+hstore.replace(new RegExp("'", 'g'), "''")+"'::hstore";
 
     return hstore;
 };
@@ -267,8 +261,7 @@ function combine(container, options) {
         if (typeof value == 'object') {
             value = combine(value, options);
         } else if (element.quoted) {
-            value = value.replace('\\"', '"')
-                         .replace('\\\\', '\\');
+            value = unescape(value);
 
             if (options.numeric_check && numeric_reg.test(value))
                 value = value * 1;
@@ -287,13 +280,21 @@ function combine(container, options) {
         if (is_array) {
             data.push(value);
         } else {
-            var key = element.key
-                    .replace('\\"', '"')
-                    .replace('\\\\', '\\');
+            var key = unescape(element.key);
 
             data[key] = value;
         }
     });
 
     return data;
+}
+
+function escape(str) {
+    return str.replace(new RegExp('\\\\', 'g'), "\\\\")
+              .replace(new RegExp('"', 'g'), '\\"');
+}
+
+function unescape(str) {
+    return str.replace(new RegExp('\\\\"', 'g'), '"')
+              .replace(new RegExp('\\\\\\\\', 'g'), '\\');
 }
