@@ -18,15 +18,15 @@ describe('simple hstore', function() {
 
     it('character escape', function(done) {
         var data = {
-            '"foo' : 'foo"',
+            '"foo' : '"foo"',
             '=>bar' : 'bar=>',
             '{foo': 'foo}',
             '[bar': 'bar]',
-            '\\foo': 'foo\\',
+            '\\foo': '\\foo\\',
         };
 
         var encoded = hstore.stringify(data);
-        assert.equal(encoded, '"\\"foo"=>"foo\\"","=>bar"=>"bar=>","{foo"=>"foo}","[bar"=>"bar]","\\\\foo"=>"foo\\\\"');
+        assert.equal(encoded, '"\\"foo"=>"\\"foo\\"","=>bar"=>"bar=>","{foo"=>"foo}","[bar"=>"bar]","\\\\foo"=>"\\\\foo\\\\"');
 
         var decoded = hstore.parse(encoded);
 
@@ -37,10 +37,10 @@ describe('simple hstore', function() {
     });
 
     it('postgresql expression', function(done) {
-        var data = {a: 1, b: 'foobar', c: '"', d: "'"};
+        var data = {a: 1, b: 'foobar', c: '"', d: "'d'"};
         var encoded = hstore.stringify(data, {return_postgresql_expression: true});
 
-        assert.equal(encoded, '\'"a"=>1,"b"=>"foobar","c"=>"\\"","d"=>"\'\'"\'::hstore');
+        assert.equal(encoded, '\'"a"=>1,"b"=>"foobar","c"=>"\\"","d"=>"\'\'d\'\'"\'::hstore');
         done();
     });
 
