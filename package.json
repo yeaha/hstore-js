@@ -1,7 +1,7 @@
 {
     "name": "hstore.js",
     "author": "yangyi.cn.gz@gmail.com",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "Postgresql hstore stringify and parse functions, support nested hstore syntax",
     "main": "./index.js",
     "repository": {
