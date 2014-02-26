@@ -1,5 +1,13 @@
 "use strict";
 
+var default_options = exports.options = {
+    array_square_brackets: false,
+    boolean_as_integer: false,
+    numeric_check: false,
+    root_hash_decorated: false,
+    return_postgresql_expression: false     // stringify
+};
+
 var stringify = exports.stringify = function(data, options, top) {
     function normalize(data) {
         if (data === null)
@@ -28,7 +36,7 @@ var stringify = exports.stringify = function(data, options, top) {
         top = true;
 
     if (top)
-        options = normalize_options(options || {});
+        options = normalize_options(options);
 
     var is_array = (Object.prototype.toString.call(data) == '[object Array]');
     var value, hstore = [];
@@ -59,7 +67,7 @@ var stringify = exports.stringify = function(data, options, top) {
 };
 
 exports.parse = function (hstore, options) {
-    options = normalize_options(options || {});
+    options = normalize_options(options);
 
     if (!options.root_hash_decorated)
         hstore = '{'+hstore+'}';
@@ -85,17 +93,12 @@ exports.parse = function (hstore, options) {
 };
 
 function normalize_options(options) {
-    var defaults = {
-        array_square_brackets: false,
-        boolean_as_integer: false,
-        numeric_check: false,
-        root_hash_decorated: false,
-        return_postgresql_expression: false     // stringify
-    };
+    if (options === undefined)
+        return default_options;
 
-    for (var k in defaults) {
+    for (var k in default_options) {
         if (options[k] === undefined)
-            options[k] = defaults[k];
+            options[k] = default_options[k];
     }
 
     return options;
