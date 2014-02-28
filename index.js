@@ -76,9 +76,9 @@ exports.parse = function (hstore, options) {
 
     for (var env, c, n, p, i = 0, len = hstore.length; i < len; i++) {
         // current
-        c = (i === 0) ? hstore.substr(i, 1) : n;
+        c = (i === 0) ? hstore[i] : n;
         // next
-        n = (i+1 < len) ? hstore.substr(i+1, 1) : undefined;
+        n = (i+1 < len) ? hstore[i+1] : undefined;
 
         env = machine(c, p, n);
 
